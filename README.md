@@ -11,7 +11,7 @@ Ce projet exécute automatiquement les **QTE** (Quick Time Events) d’un mini-j
 ## ✅ Prérequis
 
 - **Windows 10 / 11**
-- **Python 3.10 ou supérieur**
+- **Python 3.12**
 - Jeu lancé en **plein écran fenêtré** ou **fenêtré**
 - Clavier avec **pavé numérique** (si le jeu attend les touches numpad)
 
