@@ -76,7 +76,8 @@ Si tu veux utiliser le GPU :
 - Va sur le site officiel PyTorch → *Get Started*
 - Sélectionne **Windows / pip / ta version CUDA**
 - Exécute la commande fournie
-- Puis installe le reste :
+
+#### Puis installe le reste :
 
 ```bash
 pip install numpy opencv-python mss pyautogui keyboard pillow torchvision
