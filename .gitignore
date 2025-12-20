@@ -1,0 +1,21 @@
+# Environnements virtuels
+.venv/
+venv/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Torch / datasets
+*.pt
+dataset
+dataset_qte_raw
+dataset_queue
+
+# VS Code
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
