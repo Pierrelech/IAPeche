@@ -16,8 +16,8 @@ from PIL import Image
 # -------------------------------------------------
 # CONFIG MODELE
 # -------------------------------------------------
-MODEL_PATH = "qte_resnet18_color.pth"
-META_PATH  = "qte_meta_color.json"
+MODEL_PATH = "qte_resnet18_color2.pth"
+META_PATH  = "qte_meta_color2.json"
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 USE_FP16 = True if torch.cuda.is_available() else False # Fast mode for NVIDIA GPUs
 
