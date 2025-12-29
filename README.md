@@ -1,10 +1,10 @@
-# 🎣 IA de Pêche – Bot QTE (Couleur + MLP PyTorch)
+# 🎣 IA de Pêche – Creating DataSet and Training the model
 
-Ce projet exécute automatiquement les **QTE** (Quick Time Events) d’un mini-jeu de pêche en :
-- capturant l’écran en temps réel,
-- détectant les boutons QTE via leur **couleur (HSV)**,
-- reconnaissant lettres et chiffres avec un **MLP PyTorch** entraîné,
-- envoyant automatiquement les touches clavier correspondantes.
+Cette branche contient tous les fichiers pour créer un dataset, l'équilibrer, et entrainer un modèle :
+- `train_qte_cnn.py` est utilisé pour les images en nuances de gris
+- `train_qte_cnn_couleur.py` est pour les images en **couleur (HSV)**,
+- `train_qte_mobilenetv3_small.py` pour les petites configs,
+- `train_resnet18_qte_couleur` pour le 100% validation accuracy.
 
 ---
 
@@ -15,27 +15,8 @@ Ce projet exécute automatiquement les **QTE** (Quick Time Events) d’un mini-j
 - Jeu lancé en **plein écran fenêtré** ou **fenêtré**
 - Clavier avec **pavé numérique** (si le jeu attend les touches numpad)
 
-⚠️ Ce script envoie automatiquement des touches clavier.  
-À utiliser uniquement dans un cadre **autorisé** (respect des règles du serveur / jeu).
-
 ---
 
-## 📁 Structure minimale du projet
-
-Le dossier doit contenir au minimum :
-
-```
-.
-├─ pechecolor.py
-├─ qte_mlp_color.pth
-└─ qte_meta_color.json
-```
-
-- `pechecolor.py` : script principal
-- `qte_mlp_color.pth` : poids du modèle IA
-- `qte_meta_color.json` : métadonnées (classes reconnues)
-
----
 
 ## 🚀 Installation
 
@@ -85,151 +66,75 @@ pip install numpy opencv-python mss pyautogui keyboard pillow torchvision
 
 ---
 
-## ▶️ Lancer l’IA
+## ▶️ Lancer la récupération de data
 
 ```bash
-python pechecolor.py
+python capture_dataset_couleur.py
+```
+ou alors : 
+```bash
+python capture_dataset.py
 ```
 
 Fonctionnement :
-- Attendre ~2 secondes après le lancement
-- Mettre le jeu au premier plan
-- Les QTE sont détectés et exécutés automatiquement
+- lancer la peche sur le jeu
+- vous pouvez jouer en même temps (pêcher)
+- Les QTE sont détectés et mis dans le dossier dataset_qte/_queue sous cette structure : 
 
-### ⛔ Arrêter le bot
+```
+.
+├─ dataset_qte
+      └─ _queue
+```
+
+### ⛔ Arrêter la capture
 - Appuyer sur **F10**
 
 ---
 
-## ⚙️ Réglages importants (dans `pechecolor.py`)
+## ▶️ classer les datas
 
-### 🎯 Zone de capture écran
 
-```python
-MONITOR_ID = 1
-BAND_HEIGHT = 680
-```
-
-- `MONITOR_ID` : numéro de l’écran (1 = écran principal)
-- `BAND_HEIGHT` : hauteur capturée depuis le haut de l’écran
-
-👉 Ajuster si les QTE ne sont pas détectés.
-
----
-
-### 🎚️ Seuil de confiance du modèle
-
-```python
-CONF_THRESHOLD = 0.6
-```
-
-- Augmenter si des erreurs sont envoyées
-- Diminuer si certaines touches ne sont pas reconnues
-
----
-
-### 🎨 Détection couleur (HSV)
-
-```python
-HSV_LOWER = np.array([18, 40, 80], dtype=np.uint8)
-HSV_UPPER = np.array([35, 170, 200], dtype=np.uint8)
-```
-
-Ces valeurs correspondent aux boutons QTE brun/olive.  
-À ajuster si la luminosité, un reshade ou la météo du jeu change.
-
----
-
-### 🔢 Nombre max de QTE détectés
-
-```python
-MAX_BOXES_PER_FRAME = 3
-```
-
-Augmenter si plus de boutons apparaissent en même temps.
-
----
-
-### 🐞 Mode debug visuel
-
-```python
-DEBUG_WINDOWS = False
-```
-
-Passer à `True` pour afficher :
-- la bande capturée
-- les rectangles détectés
-- le masque HSV
-
-Très utile pour calibrer.
-
----
-
-## ⌨️ Gestion des touches clavier
-
-- **Chiffres** : envoyés via le pavé numérique (`num0` à `num9`)
-- **Lettres** : envoyées via le clavier classique
-
-Code actuel :
-```python
-pyautogui.press(f"num{c}")
-```
-
-👉 Si ton jeu attend les chiffres normaux (ligne du haut), remplace par :
-```python
-pyautogui.press(c)
-```
-
----
-
-## 🧪 Problèmes courants
-
-### ❌ `ModuleNotFoundError`
-➡️ Le venv n’est pas activé ou dépendances manquantes
+Vous pouvez classer les datas via vos dossiers, ou bien via 
 
 ```bash
-pip install keyboard
+python anotation_dataset.py
+```
+ou alors : 
+```bash
+python annotate_dataset.py
 ```
 
----
+Fonctionnement :
+- les images apparaissent une par une
+- appuyez sur la touche correspondante
+- si l'image ne correspond est une mauvaise capture, mettez la dans un dossier non utilisable (exemple x) puis supprimez ce dossier après l'annotation
 
-### ❌ Aucun QTE détecté
-- Vérifier `MONITOR_ID`
-- Vérifier `BAND_HEIGHT`
-- Activer `DEBUG_WINDOWS = True`
+D'autres fichiers sont disponibles pour équilibrer votre dataset
 
----
+## ▶️ Entrainer le modèle
 
-### ❌ Touches incorrectes ou instables
-- Augmenter `CONF_THRESHOLD`
-- Le script stabilise sur plusieurs frames (vote majoritaire)
+Vous pouvez entrainer votre modele via : 
 
----
+Vous pouvez les faire via vos dossiers, ou bien via 
 
-### ❌ Les touches ne sont pas envoyées
-- Le jeu doit être **au premier plan**
-- Lancer le terminal **en administrateur**
-- Désactiver certains overlays (Discord, GeForce, etc.)
-
----
-
-## 🔐 Notes techniques
-
-- Modèle utilisé : **MLP couleur**
-- Taille d’entrée : **64×64 RGB**
-- Classes reconnues :
-```python
-A–Z et 0–9
+```bash
+python train_qte_cnn.py
+```
+ou : 
+```bash
+python train_qte_cnn_couleur.py
+```
+ou : 
+```bash
+python train_qte_mobilenetv3_small.py
+```
+ou pour le 100%: 
+```bash
+python train_resnet18_qte_couleur.py
 ```
 
----
 
-## 📜 Licence
-
-À définir (MIT, GPL, privée…).  
-Par défaut : **All rights reserved**.
-
----
 
 ## ✨ Auteur
 
