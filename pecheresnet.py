@@ -16,22 +16,22 @@ from PIL import Image
 # -------------------------------------------------
 # CONFIG MODELE
 # -------------------------------------------------
-MODEL_PATH = "qte_resnet18_color2.pth"
-META_PATH  = "qte_meta_color2.json"
+MODEL_PATH = "qte_resnet18_color2.pth"      # Nouveau modèle ResNet18
+META_PATH  = "qte_meta_color2.json"         # Métadonnées
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-USE_FP16 = True if torch.cuda.is_available() else False # Fast mode for NVIDIA GPUs
+USE_FP16 = True if torch.cuda.is_available() else False # Utiliser FP16 uniquement si GPU dispo
 
 # -------------------------------------------------
 # CONFIG ECRAN + ZONE A LIRE
 # -------------------------------------------------
-MONITOR_ID = 1
-BAND_HEIGHT = 680
-ALLOWED_CHARS = set("ABCDEFGHIJKLMNPQRSTUVWYZ123456789")
-MAX_BOXES_PER_FRAME = 3
-DEBUG_WINDOWS = False
-CONF_THRESHOLD = 0.85
+MONITOR_ID = 1      # ID du moniteur à capturer (1 = premier moniteur)
+BAND_HEIGHT = 680   # Hauteur de la bande en haut de l'écran à capturer
+ALLOWED_CHARS = set("ABCDEFGHIJKLMNPQRSTUVWYZ123456789")    # Caractères autorisés dans les QTE (exclut O et 0 pour éviter confusion et x car non utilisé)
+MAX_BOXES_PER_FRAME = 3 # Nombre max de boîtes QTE à détecter par frame
+DEBUG_WINDOWS = False   # Affiche les fenêtres de debug (capture + masque)
+CONF_THRESHOLD = 0.85   # Seuil de confiance pour accepter une prédiction
 
-IMG_SIZE = 64
+IMG_SIZE = 64        # Taille d'entrée du modèle ResNet18
 
 # -------------------------------------------------
 # CHARGEMENT MODELE + META
@@ -39,28 +39,28 @@ IMG_SIZE = 64
 with open(META_PATH, "r", encoding="utf-8") as f:
     meta = json.load(f)
 
-classes = meta["classes"]
-num_classes = len(classes)
-idx_to_class = {i: c for i, c in enumerate(classes)}
+classes = meta["classes"]   # Liste des classes
+num_classes = len(classes)  # Nombre de classes
+idx_to_class = {i: c for i, c in enumerate(classes)}    # Mapping index -> classe pour permettre la prédiction car sinon on n'a que l'index en sortie du modèle
 
 # Initialize ResNet18
-model = models.resnet18()
-num_ftrs = model.fc.in_features
-model.fc = nn.Linear(num_ftrs, num_classes)
+model = models.resnet18()                               # Utilisation d'un modèle ResNet18 pré-entraîné sur ImageNet
+num_ftrs = model.fc.in_features                         # Remplace la dernière couche fully connected pour correspondre au nombre de classes de mon dataset
+model.fc = nn.Linear(num_ftrs, num_classes)             # Permet de faire des prédictions sur mes classes de QTE
 
-# Load weights and optimize
-model.load_state_dict(torch.load(MODEL_PATH, map_location=DEVICE))
-model.to(DEVICE)
-model.eval()
+# Charge les poids du modèle entraîné
+model.load_state_dict(torch.load(MODEL_PATH, map_location=DEVICE))  # permet de charger le modèle sur CPU ou GPU selon dispo
+model.to(DEVICE)                                                    # envoie le modèle sur le device approprié
+model.eval()                                                        # mode évaluation           
 
 if USE_FP16:
-    model.half() # Instant speed boost on GPU
+    model.half() # accelère les inférences sur GPU compatible FP16
 
 # Transform (Match training exactly)
 inference_transform = transforms.Compose([
-    transforms.Resize((IMG_SIZE, IMG_SIZE)),
-    transforms.ToTensor(),
-    transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+    transforms.Resize((IMG_SIZE, IMG_SIZE)),    # redimensionne à la taille attendue par le modèle
+    transforms.ToTensor(),                      # convertit en tenseur PyTorch
+    transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),    # normalisation comme lors de l'entraînement
 ])
 
 print(f"[INFO] Modèle ResNet18 prêt sur {DEVICE} (FP16={USE_FP16})")
@@ -68,36 +68,37 @@ print(f"[INFO] Modèle ResNet18 prêt sur {DEVICE} (FP16={USE_FP16})")
 # -------------------------------------------------
 # OPTIMIZED BATCH PREDICTION
 # -------------------------------------------------
+
+#Prédit toutes les boîtes détectées en un seul passage GPU (beaucoup plus rapide) car le problème que j'avais avant était le temps de prédiction par boîte individuelle
 @torch.no_grad()
 def predict_batch_resnet(boxes, frame_bgr):
-    """Predicts all detected boxes in a single GPU pass (much faster)"""
     if not boxes:
         return []
 
-    tensors = []
+    tensors = []    # Prépare les tenseurs pour chaque boîte détectée
     for (x, y, w, h) in boxes:
-        roi = frame_bgr[y:y+h, x:x+w]
-        roi_rgb = cv2.cvtColor(roi, cv2.COLOR_BGR2RGB)
-        img_pil = Image.fromarray(roi_rgb)
-        tensors.append(inference_transform(img_pil))
+        roi = frame_bgr[y:y+h, x:x+w]   # extrait la ROI de l'image complète afin de minimiser les copies mémoire
+        roi_rgb = cv2.cvtColor(roi, cv2.COLOR_BGR2RGB)  # convertit BGR -> RGB pour PIL
+        img_pil = Image.fromarray(roi_rgb)              # convertit en image PIL
+        tensors.append(inference_transform(img_pil))    # applique les transforms et ajoute à la liste
 
     # Stack into a single batch [Batch_Size, 3, 64, 64]
-    batch_tensor = torch.stack(tensors).to(DEVICE)
+    batch_tensor = torch.stack(tensors).to(DEVICE)      # envoie le batch sur le device
     
     if USE_FP16:
         batch_tensor = batch_tensor.half()
 
-    # One single model call for all boxes
-    outputs = model(batch_tensor)
-    probs = torch.softmax(outputs, dim=1)
-    confs, pred_indices = torch.max(probs, dim=1)
+    # Propagation avant
+    outputs = model(batch_tensor)                       # sorties brutes du modèle [Batch_Size, Num_Classes]
+    probs = torch.softmax(outputs, dim=1)               # convertit en probabilités
+    confs, pred_indices = torch.max(probs, dim=1)       # Récupère les indices des classes prédites et leurs confiances affin de filtrer selon le seuil
 
-    results = []
+    results = []    # Prépare les résultats finaux
     for i in range(len(boxes)):
-        label = idx_to_class[int(pred_indices[i].item())]
-        conf = float(confs[i].item())
-        if conf >= CONF_THRESHOLD:
-            results.append((boxes[i][0], label)) # (x_coord, label)
+        label = idx_to_class[int(pred_indices[i].item())]   # Récupère le label prédit
+        conf = float(confs[i].item())                       # Récupère la confiance associée à cette prédiction
+        if conf >= CONF_THRESHOLD:                          # n'accepte la prédiction que si au-dessus du seuil
+            results.append((boxes[i][0], label)) # renvoie le X de la boîte et le label prédit
     
     return results
 
