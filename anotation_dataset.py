@@ -6,7 +6,7 @@ import shutil
 
 QUEUE_DIR = "dataset_qte/_queue"        # là où la capture stocke les images à classer
 DATASET_DIR = "dataset_qte"    # ImageFolder PyTorch
-ALLOWED_CHARS = set("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
+ALLOWED_CHARS = set("ABCDEFGHJKLMNPQRSTUVWYZ123456789")
 
 
 def ensure_dirs():

@@ -12,8 +12,8 @@ from torchvision import datasets, transforms, models
 # CONFIG
 # ==============================
 DATASET_ROOT = "dataset_qte"
-MODEL_PATH   = "qte_resnet18_color.pth"
-META_PATH    = "qte_meta_color.json"
+MODEL_PATH   = "qte_resnet18_color2.pth"
+META_PATH    = "qte_meta_color2.json"
 
 IMG_SIZE     = 64 
 BATCH_SIZE   = 32     # Reduced batch size often helps ResNet generalize better
@@ -37,8 +37,7 @@ print(f"[INFO] Device utilisé : {device}")
 # Training transforms include Augmentation to prevent overfitting
 train_transform = transforms.Compose([
     transforms.Resize((IMG_SIZE, IMG_SIZE)),
-    transforms.RandomRotation(10),             # Handles slightly tilted screen captures
-    transforms.ColorJitter(brightness=0.2, contrast=0.2), # Handles lighting changes
+    transforms.ColorJitter(brightness=0.1, contrast=0.1), # Handles lighting changes
     transforms.ToTensor(),
     transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
 ])
