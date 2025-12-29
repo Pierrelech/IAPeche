@@ -131,7 +131,7 @@ python train_qte_mobilenetv3_small.py
 ```
 ou pour le 100%: 
 ```bash
-python train_resnet18_qte_couleur.py
+python train_resnet18_qte_couleur2.py
 ```
 
 
