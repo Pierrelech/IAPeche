@@ -103,9 +103,9 @@ def predict_batch_resnet(boxes, frame_bgr):
     return results
 
 # -------------------------------------------------
-# UTILS
+# UTILS ET FONCTIONS PRINCIPALES
 # -------------------------------------------------
-def get_zone_for_top_band(sct):
+def get_zone_for_top_band(sct):     
     mon = sct.monitors[MONITOR_ID]
     return {"left": mon["left"], "top": mon["top"], "width": mon["width"], "height": BAND_HEIGHT}
 
